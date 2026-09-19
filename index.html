@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fractal Explorer // fractal-explorer.slippylabs.com</title>
+<meta name="description" content="Zoom into the Mandelbrot set, Julia sets, the Burning Ship and more — smooth continuous colouring, progressive rendering, shareable coordinates and a PNG export. Runs entirely in your browser.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://fractal-explorer.slippylabs.com/">
+<meta property="og:title" content="Fractal Explorer // fractal-explorer.slippylabs.com">
+<meta property="og:description" content="Zoom into the Mandelbrot set, Julia sets, the Burning Ship and more — smooth continuous colouring, progressive rendering, shareable coordinates and a PNG export. Runs entirely in your browser.">
+<meta property="og:image" content="https://fractal-explorer.slippylabs.com/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Fractal Explorer // fractal-explorer.slippylabs.com">
+<meta name="twitter:description" content="Zoom into the Mandelbrot set, Julia sets, the Burning Ship and more — smooth continuous colouring, progressive rendering, shareable coordinates and a PNG export. Runs entirely in your browser.">
+<meta name="twitter:image" content="https://fractal-explorer.slippylabs.com/og-image.png">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Ccircle%20cx%3D%2232%22%20cy%3D%2234%22%20r%3D%2222%22%20fill%3D%22%231c8a52%22%20stroke%3D%22%2339ff8f%22%20stroke-width%3D%222%22%2F%3E%3Ccircle%20cx%3D%2220%22%20cy%3D%2216%22%20r%3D%228%22%20fill%3D%22%231c8a52%22%20stroke%3D%22%2339ff8f%22%20stroke-width%3D%222%22%2F%3E%3Ccircle%20cx%3D%2244%22%20cy%3D%2216%22%20r%3D%228%22%20fill%3D%22%231c8a52%22%20stroke%3D%22%2339ff8f%22%20stroke-width%3D%222%22%2F%3E%3C%2Fsvg%3E">
+<meta name="theme-color" content="#050b10">
+<link rel="stylesheet" href="style.css?v=1">
+<script>/* perf-lite: drop blend/blur effects on low-power devices. ?fx=lite or ?fx=full to override (persisted). */
+(function(){try{var k="slippy-fx",m=location.search.match(/[?&]fx=(lite|full)/),v=m?m[1]:localStorage.getItem(k);if(m)localStorage.setItem(k,v);if(v==="lite"||(v!=="full"&&(navigator.hardwareConcurrency||8)<=2))document.documentElement.classList.add("perf-lite");}catch(e){}})();</script>
+</head>
+<body>
+
+<div class="starfield"></div>
+<div class="scanlines"></div>
+
+<main class="page-wrap">
+  <div class="hud-panel wide">
+    <div class="corner tl"></div>
+    <div class="corner tr"></div>
+    <div class="corner bl"></div>
+    <div class="corner br"></div>
+
+    <div class="callsign-row">
+      <div class="toad-avatar-wrap">
+        <svg class="toad-avatar" width="46" height="46" viewBox="0 0 64 64">
+          <circle cx="32" cy="34" r="22" fill="#1c8a52" stroke="#39ff8f" stroke-width="2"/>
+          <circle cx="20" cy="16" r="8" fill="#1c8a52" stroke="#39ff8f" stroke-width="2"/>
+          <circle cx="44" cy="16" r="8" fill="#1c8a52" stroke="#39ff8f" stroke-width="2"/>
+          <circle cx="20" cy="16" r="3.5" fill="#050b10"/>
+          <circle cx="44" cy="16" r="3.5" fill="#050b10"/>
+          <ellipse cx="24" cy="32" rx="4.5" ry="5.5" fill="#050b10"/>
+          <ellipse cx="40" cy="32" rx="4.5" ry="5.5" fill="#050b10"/>
+          <circle cx="24" cy="30" r="1.4" fill="#39ff8f"/>
+          <circle cx="40" cy="30" r="1.4" fill="#39ff8f"/>
+          <path d="M22 42 Q32 48 42 42" stroke="#050b10" stroke-width="2" fill="none" stroke-linecap="round"/>
+        </svg>
+        <div class="lock-reticle"></div>
+      </div>
+      <span class="callsign">Workshop Division // Tool</span>
+      <div class="nav-links">
+        <a href="https://projects.slippylabs.com/" class="logout-link">← Archive</a>
+      </div>
+    </div>
+
+
+    <h1>FRACTAL EXPLORER</h1>
+    <p class="subtitle">Drag to pan, scroll or pinch to zoom, and the URL follows you &mdash; every view is a link. Colouring is the continuous escape estimate, not the raw iteration count, which is why the bands have no stair-steps in them.</p>
+
+    <div class="fe-controls">
+      <div class="tool-field-row">
+        <label class="tool-field-label" for="type-select">Fractal</label>
+        <select class="tool-select" id="type-select"></select>
+      </div>
+      <div class="tool-field-row">
+        <label class="tool-field-label" for="place-select">Take me somewhere</label>
+        <select class="tool-select" id="place-select"></select>
+      </div>
+      <div class="tool-field-row">
+        <label class="tool-field-label" for="palette-select">Palette</label>
+        <select class="tool-select" id="palette-select"></select>
+      </div>
+      <div class="tool-field-row" id="power-box">
+        <label class="tool-field-label" for="power-slider">Power (z<sup>d</sup> + c)</label>
+        <div class="tool-slider-row">
+          <input type="range" id="power-slider" min="2" max="8" value="2">
+          <span class="fe-slider-value" id="power-value">2</span>
+        </div>
+      </div>
+      <div class="tool-field-row">
+        <label class="tool-field-label" for="curve-select">Colour curve</label>
+        <select class="tool-select" id="curve-select">
+          <option value="sqrt" selected>Square root — even bands</option>
+          <option value="log">Logarithmic — deep detail</option>
+          <option value="linear">Linear — raw escape time</option>
+        </select>
+      </div>
+      <div class="tool-field-row">
+        <label class="tool-field-label" for="density-slider">Colour density</label>
+        <div class="tool-slider-row">
+          <input type="range" id="density-slider" min="2" max="120" value="28">
+          <span class="fe-slider-value" id="density-value">28</span>
+        </div>
+      </div>
+      <div class="tool-field-row">
+        <label class="tool-field-label" for="iter-slider">Iteration limit</label>
+        <div class="tool-slider-row">
+          <input type="range" id="iter-slider" min="50" max="4000" step="50" value="400">
+          <span class="fe-slider-value" id="iter-value">auto</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="tool-checks">
+      <label class="tool-check"><input type="checkbox" id="auto-iter-check" checked> Scale iterations with zoom</label>
+      <label class="tool-check"><input type="checkbox" id="cycle-check"> Cycle the palette</label>
+    </div>
+
+    <div class="fe-julia hidden" id="julia-box">
+      <div class="tool-field-row">
+        <label class="tool-field-label" for="cre-input">Julia c — real</label>
+        <input class="tool-text-input" id="cre-input" type="text" spellcheck="false" value="-0.4">
+      </div>
+      <div class="tool-field-row">
+        <label class="tool-field-label" for="cim-input">Julia c — imaginary</label>
+        <input class="tool-text-input" id="cim-input" type="text" spellcheck="false" value="0.6">
+      </div>
+      <p class="tool-note" style="margin:0">
+        In Mandelbrot view, <strong>shift-click</strong> any point to use it as this
+        <code>c</code> and jump to the Julia set it generates. Points just inside the
+        Mandelbrot boundary make the most interesting ones.
+      </p>
+    </div>
+
+    <div class="fe-canvas-wrap">
+      <canvas id="fractal-canvas" width="900" height="600"></canvas>
+      <div class="fe-progress"><div class="fe-progress-fill" id="progress-fill"></div></div>
+    </div>
+
+    <div class="tool-controls">
+      <button class="tool-btn" id="zoom-in-btn">Zoom In</button>
+      <button class="tool-btn" id="zoom-out-btn">Zoom Out</button>
+      <button class="tool-btn ghost" id="reset-btn">Reset View</button>
+      <button class="tool-btn ghost" id="png-btn">Download PNG</button>
+      <button class="tool-btn ghost" id="link-btn">Copy Link</button>
+      <span class="copy-toast" id="copy-toast">copied</span>
+      <a id="download-link" hidden></a>
+    </div>
+
+    <div class="net-grid" id="stat-host"></div>
+    <p class="tool-note" id="precision-note"></p>
+
+    <p class="tool-note">
+      Each pixel is one complex number <em>c</em>, and the only question asked of it is whether
+      iterating <code>z &rarr; z² + c</code> from zero stays bounded. It either escapes past radius 2
+      &mdash; after which it is gone for good &mdash; or it never does. Black is &ldquo;never did,
+      within the iteration limit&rdquo;, so raising that limit shrinks the black and reveals thinner
+      filaments; the limit is the only thing between you and an exact answer.
+    </p>
+    <p class="tool-note">
+      Everything is computed in <code>double</code>, which runs out at roughly 10<sup>15</sup>×
+      magnification &mdash; past that, neighbouring pixels round to the same complex number and the
+      image goes blocky. Going deeper needs arbitrary-precision arithmetic with perturbation theory,
+      which is a different program. The readout says when you are close.
+    </p>
+    <div class="comm-window">
+      <div class="comm-portrait">
+        <svg width="36" height="36" viewBox="0 0 64 64">
+          <circle cx="32" cy="34" r="22" fill="#1c8a52" stroke="#39ff8f" stroke-width="2"/>
+          <circle cx="20" cy="16" r="8" fill="#1c8a52" stroke="#39ff8f" stroke-width="2"/>
+          <circle cx="44" cy="16" r="8" fill="#1c8a52" stroke="#39ff8f" stroke-width="2"/>
+          <circle cx="20" cy="16" r="3.5" fill="#050b10"/>
+          <circle cx="44" cy="16" r="3.5" fill="#050b10"/>
+          <ellipse cx="24" cy="32" rx="4.5" ry="5.5" fill="#050b10"/>
+          <ellipse cx="40" cy="32" rx="4.5" ry="5.5" fill="#050b10"/>
+          <circle cx="24" cy="30" r="1.4" fill="#39ff8f"/>
+          <circle cx="40" cy="30" r="1.4" fill="#39ff8f"/>
+          <path d="M22 42 Q32 48 42 42" stroke="#050b10" stroke-width="2" fill="none" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="comm-body">
+        <div class="comm-label"><span class="dot"></span> Incoming Transmission &mdash; Slippy</div>
+        <p>&quot;Two lines of arithmetic. Infinite detail. Nobody has ever found the bottom.&quot;</p>
+      </div>
+    </div>
+
+    <a href="https://projects.slippylabs.com/" class="hud-btn">← Back to Archive</a>
+  </div>
+</main>
+
+
+<script>
+/* ---- escape-time core -----------------------------------------------------
+   One function per family, all returning the same thing: how long the orbit
+   survived, as a real number rather than an integer count.
+
+   The continuous estimate is what kills the banding. On escape the orbit has
+   overshot the bailout radius by some amount, and how far it overshot says
+   where between iteration n and n+1 the true crossing happened:
+
+       nu = n + 1 - log_d( ln|z| / ln(bailout) )
+
+   which lands in (n, n+1] and is continuous across the whole plane. With d = 2
+   the log base is 2, which is the familiar form of the formula. */
+
+const BAILOUT = 256;                 // generous: a tight radius of 2 makes the
+const BAILOUT2 = BAILOUT * BAILOUT;  // smooth estimate visibly less smooth
+
+const TYPES = [
+  { id: 'mandelbrot', name: 'Mandelbrot set', julia: false, defaultView: { re: -0.6, im: 0, span: 3.2 } },
+  { id: 'julia', name: 'Julia set', julia: true, defaultView: { re: 0, im: 0, span: 3.2 } },
+  { id: 'burningship', name: 'Burning Ship', julia: false, defaultView: { re: -0.4, im: -0.5, span: 3.4 } },
+  { id: 'tricorn', name: 'Tricorn (Mandelbar)', julia: false, defaultView: { re: 0, im: 0, span: 3.6 } },
+  { id: 'multibrot', name: 'Multibrot — z^d + c', julia: false, defaultView: { re: 0, im: 0, span: 3.2 } },
+];
+
+function escapeValue(pre, pim, opts) {
+  const maxIter = opts.maxIter;
+  const type = opts.type;
+  const power = opts.power || 2;
+  let zr;
+  let zi;
+  let cr;
+  let ci;
+  if (type === 'julia') {
+    zr = pre; zi = pim; cr = opts.cre; ci = opts.cim;
+  } else {
+    zr = 0; zi = 0; cr = pre; ci = pim;
+  }
+  let n = 0;
+  let m2 = zr * zr + zi * zi;
+  while (n < maxIter && m2 <= BAILOUT2) {
+    if (type === 'burningship') {
+      const ar = Math.abs(zr);
+      const ai = Math.abs(zi);
+      const nr = ar * ar - ai * ai + cr;
+      zi = 2 * ar * ai + ci;
+      zr = nr;
+    } else if (type === 'tricorn') {
+      // conjugate before squaring: z -> (conj z)^2 + c
+      const nr = zr * zr - zi * zi + cr;
+      zi = -2 * zr * zi + ci;
+      zr = nr;
+    } else if (type === 'multibrot' && power !== 2) {
+      // repeated complex multiplication, so an integer power stays exact-ish
+      let pr = zr;
+      let pi = zi;
+      for (let k = 1; k < power; k++) {
+        const tr = pr * zr - pi * zi;
+        pi = pr * zi + pi * zr;
+        pr = tr;
+      }
+      zr = pr + cr;
+      zi = pi + ci;
+    } else {
+      const nr = zr * zr - zi * zi + cr;
+      zi = 2 * zr * zi + ci;
+      zr = nr;
+    }
+    m2 = zr * zr + zi * zi;
+    n++;
+  }
+  if (n >= maxIter && m2 <= BAILOUT2) return { n, smooth: -1, inside: true };
+  const base = type === 'multibrot' ? power : 2;
+  const smooth = n + 1 - Math.log(Math.log(Math.sqrt(m2)) / Math.log(BAILOUT)) / Math.log(base);
+  return { n, smooth, inside: false };
+}
+
+/* The two regions of the Mandelbrot set that can be answered without iterating:
+   the main cardioid and the period-2 bulb. Used to skip work, and a handy
+   independent statement about which points must never escape. */
+function inMainCardioid(cr, ci) {
+  const q = (cr - 0.25) * (cr - 0.25) + ci * ci;
+  return q * (q + (cr - 0.25)) <= 0.25 * ci * ci;
+}
+function inPeriod2Bulb(cr, ci) {
+  return (cr + 1) * (cr + 1) + ci * ci <= 0.0625;
+}
+
+/* -- view geometry ---------------------------------------------------------
+   A view is a centre plus the complex height of the canvas. Screen y grows
+   downward and the imaginary axis grows upward, so the mapping flips it. */
+function pixelToComplex(view, w, h, px, py) {
+  const scale = view.span / h;
+  return {
+    re: view.re + (px - w / 2) * scale,
+    im: view.im - (py - h / 2) * scale,
+  };
+}
+
+function magnification(view) {
+  return 3.2 / view.span;
+}
+
+/* A double has 53 bits of significand, so once one pixel step is within about
+   2^-50 of the coordinate's own magnitude, neighbouring pixels collapse onto the
+   same number. That is the floor of this renderer. */
+function precisionHeadroom(view, h) {
+  const step = view.span / h;
+  const magnitude = Math.max(1, Math.abs(view.re), Math.abs(view.im));
+  return step / (magnitude * Math.pow(2, -52));   // in ULPs of the coordinate
+}
+
+function autoIterations(view) {
+  const mag = Math.max(1, magnification(view));
+  return Math.min(6000, Math.round(220 * Math.pow(1 + Math.log10(mag), 1.35)));
+}
+
+/* -- palettes -------------------------------------------------------------
+   Stops in sRGB, interpolated linearly, sampled on a repeating cycle so that
+   the smooth escape value maps to a smooth colour. */
+const PALETTES = [
+  { id: 'hud', name: 'HUD green', stops: [[0, 5, 11, 16], [0.35, 28, 138, 82], [0.62, 57, 255, 143], [0.8, 217, 251, 232], [1, 5, 11, 16]] },
+  { id: 'fire', name: 'Fire', stops: [[0, 0, 0, 0], [0.3, 140, 20, 10], [0.55, 240, 110, 20], [0.78, 255, 225, 120], [1, 0, 0, 0]] },
+  { id: 'ice', name: 'Ice', stops: [[0, 3, 8, 24], [0.32, 20, 70, 150], [0.58, 80, 170, 235], [0.82, 235, 250, 255], [1, 3, 8, 24]] },
+  { id: 'ultra', name: 'Ultra (classic blue/gold)', stops: [[0, 0, 7, 100], [0.16, 32, 107, 203], [0.42, 237, 255, 255], [0.6425, 255, 170, 0], [0.8575, 0, 2, 0], [1, 0, 7, 100]] },
+  { id: 'mono', name: 'Monochrome', stops: [[0, 0, 0, 0], [0.5, 255, 255, 255], [1, 0, 0, 0]] },
+  { id: 'rainbow', name: 'Spectrum', stops: [[0, 255, 0, 0], [0.17, 255, 255, 0], [0.33, 0, 255, 0], [0.5, 0, 255, 255], [0.67, 0, 0, 255], [0.83, 255, 0, 255], [1, 255, 0, 0]] },
+];
+
+/* Most of the plane escapes in a handful of iterations, so a linear map spends
+   almost the whole palette on the thin band hugging the set and paints the rest
+   one flat colour. Compressing the scale first is what produces the familiar
+   nested bands; the multipliers put all three curves on a comparable footing so
+   the density slider means roughly the same thing whichever is chosen. */
+function curveValue(smooth, curve) {
+  if (curve === 'sqrt') return Math.sqrt(smooth) * 4;
+  if (curve === 'log') return Math.log(1 + smooth) * 6;
+  return smooth;
+}
+
+function paletteColor(stops, t) {
+  const x = t - Math.floor(t);   // wrap into [0, 1)
+  for (let i = 1; i < stops.length; i++) {
+    if (x <= stops[i][0]) {
+      const a = stops[i - 1];
+      const b = stops[i];
+      const f = b[0] === a[0] ? 0 : (x - a[0]) / (b[0] - a[0]);
+      return [
+        Math.round(a[1] + (b[1] - a[1]) * f),
+        Math.round(a[2] + (b[2] - a[2]) * f),
+        Math.round(a[3] + (b[3] - a[3]) * f),
+      ];
+    }
+  }
+  const last = stops[stops.length - 1];
+  return [last[1], last[2], last[3]];
+}
+
+/* A place worth going, as a shareable view. */
+const PLACES = [
+  { name: 'Home — the whole set', type: 'mandelbrot', view: { re: -0.6, im: 0, span: 3.2 } },
+  { name: 'Seahorse Valley', type: 'mandelbrot', view: { re: -0.745428, im: 0.113009, span: 0.0075 } },
+  { name: 'Elephant Valley', type: 'mandelbrot', view: { re: 0.2825, im: 0.01, span: 0.012 } },
+  { name: 'Triple spiral', type: 'mandelbrot', view: { re: -0.088, im: 0.654, span: 0.014 } },
+  { name: 'A mini Mandelbrot', type: 'mandelbrot', view: { re: -1.768797, im: 0.001738, span: 0.00012 } },
+  { name: 'Deep spiral (1e9×)', type: 'mandelbrot', view: { re: -0.7436438870371587, im: 0.13182590420531198, span: 3e-9 } },
+  { name: 'Along the antenna', type: 'mandelbrot', view: { re: -1.749, im: 0, span: 0.03 } },
+  { name: 'Julia — Douady rabbit', type: 'julia', c: { re: -0.123, im: 0.745 }, view: { re: 0, im: 0, span: 3 } },
+  { name: 'Julia — dendrite', type: 'julia', c: { re: 0, im: 1 }, view: { re: 0, im: 0, span: 3.4 } },
+  { name: 'Julia — San Marco', type: 'julia', c: { re: -0.75, im: 0 }, view: { re: 0, im: 0, span: 3.2 } },
+  { name: 'Julia — Siegel disc', type: 'julia', c: { re: -0.390541, im: -0.586788 }, view: { re: 0, im: 0, span: 3 } },
+  { name: 'Julia — spiral arms', type: 'julia', c: { re: 0.285, im: 0.01 }, view: { re: 0, im: 0, span: 2.4 } },
+  { name: 'Burning Ship — the bow', type: 'burningship', view: { re: -1.755, im: -0.03, span: 0.12 } },
+  { name: 'Tricorn — three horns', type: 'tricorn', view: { re: 0, im: 0, span: 3.6 } },
+];
+
+/* ==== UI ==== */
+
+const $ = (id) => document.getElementById(id);
+
+const canvas = $('fractal-canvas');
+const ctx = canvas.getContext('2d', { alpha: false });
+
+let state = {
+  type: 'mandelbrot',
+  view: { ...TYPES[0].defaultView },
+  cre: -0.4,
+  cim: 0.6,
+  power: 2,
+  palette: 'hud',
+  curve: 'sqrt',
+  density: 28,
+  iterManual: 400,
+  autoIter: true,
+  cycle: 0,
+};
+
+let iterBuf = null;      // smooth escape value per pixel, -1 for interior
+let bufComplete = false;
+let renderToken = 0;
+let lastRenderMs = 0;
+let imgData = null;
+
+$('type-select').innerHTML = TYPES.map((t) => `<option value="${t.id}">${t.name}</option>`).join('');
+$('palette-select').innerHTML = PALETTES.map((p) => `<option value="${p.id}">${p.name}</option>`).join('');
+$('place-select').innerHTML = '<option value="">— pick a view —</option>'
+  + PLACES.map((p, i) => `<option value="${i}">${p.name}</option>`).join('');
+
+function fitCanvas() {
+  // One backing pixel per CSS pixel, capped: a 4K-wide canvas of 3000-iteration
+  // pixels is not a pleasant wait.
+  const wrap = canvas.parentElement;
+  const cssW = Math.max(280, Math.min(1100, wrap.clientWidth - 16));
+  const cssH = Math.round(cssW * 2 / 3);
+  if (canvas.width !== cssW || canvas.height !== cssH) {
+    canvas.width = cssW;
+    canvas.height = cssH;
+    imgData = ctx.createImageData(cssW, cssH);
+    iterBuf = new Float64Array(cssW * cssH);
+    bufComplete = false;
+  }
+  canvas.style.width = `${cssW}px`;
+  canvas.style.height = `${cssH}px`;
+}
+
+function currentIterations() {
+  return state.autoIter ? autoIterations(state.view) : state.iterManual;
+}
+
+function opts() {
+  return {
+    type: state.type,
+    power: state.power,
+    cre: state.cre,
+    cim: state.cim,
+    maxIter: currentIterations(),
+  };
+}
+
+function colorFor(smooth) {
+  if (smooth < 0) return [0, 0, 0];
+  const stops = PALETTES.find((p) => p.id === state.palette).stops;
+  return paletteColor(stops, curveValue(smooth, state.curve) / state.density + state.cycle);
+}
+
+function paintFromBuffer() {
+  const w = canvas.width;
+  const h = canvas.height;
+  const d = imgData.data;
+  for (let i = 0; i < iterBuf.length; i++) {
+    const [r, g, b] = colorFor(iterBuf[i]);
+    const o = i * 4;
+    d[o] = r; d[o + 1] = g; d[o + 2] = b; d[o + 3] = 255;
+  }
+  ctx.putImageData(imgData, 0, 0);
+}
+
+/* Progressive render: a coarse pass first so the shape appears immediately, then
+   finer ones, each with a frame time budget so the page never locks up. The
+   token makes a stale pass abandon itself the moment the view changes. */
+function render() {
+  fitCanvas();
+  const token = ++renderToken;
+  const w = canvas.width;
+  const h = canvas.height;
+  const o = opts();
+  const view = state.view;
+  const passes = [16, 4, 1];
+  let passIdx = 0;
+  let y = 0;
+  const t0 = performance.now();
+  bufComplete = false;
+
+  function work() {
+    if (token !== renderToken) return;
+    const frameStart = performance.now();
+    while (passIdx < passes.length) {
+      const step = passes[passIdx];
+      while (y < h) {
+        for (let x = 0; x < w; x += step) {
+          const c = pixelToComplex(view, w, h, x + step / 2, y + step / 2);
+          let smooth;
+          if (o.type === 'mandelbrot' && (inMainCardioid(c.re, c.im) || inPeriod2Bulb(c.re, c.im))) {
+            smooth = -1;    // provably interior, no iteration needed
+          } else {
+            smooth = escapeValue(c.re, c.im, o).smooth;
+          }
+          const [r, g, b] = colorFor(smooth);
+          for (let dy = 0; dy < step && y + dy < h; dy++) {
+            for (let dx = 0; dx < step && x + dx < w; dx++) {
+              const idx = (y + dy) * w + x + dx;
+              if (step === 1) iterBuf[idx] = smooth;
+              const p = idx * 4;
+              imgData.data[p] = r;
+              imgData.data[p + 1] = g;
+              imgData.data[p + 2] = b;
+              imgData.data[p + 3] = 255;
+            }
+          }
+        }
+        y += step;
+        if (performance.now() - frameStart > 14) {
+          ctx.putImageData(imgData, 0, 0);
+          const done = (passIdx + y / h) / passes.length;
+          $('progress-fill').style.width = `${Math.round(done * 100)}%`;
+          requestAnimationFrame(work);
+          return;
+        }
+      }
+      passIdx++;
+      y = 0;
+    }
+    ctx.putImageData(imgData, 0, 0);
+    bufComplete = true;
+    lastRenderMs = performance.now() - t0;
+    $('progress-fill').style.width = '0%';
+    renderStats();
+  }
+  work();
+}
+
+function fmt(x, digits) {
+  if (x === 0) return '0';
+  const a = Math.abs(x);
+  if (a >= 1e-6 && a < 1e7) return x.toFixed(digits);
+  return x.toExponential(3);
+}
+
+function renderStats() {
+  const mag = magnification(state.view);
+  const head = precisionHeadroom(state.view, canvas.height);
+  const tiles = [
+    ['Centre — real', fmt(state.view.re, 15)],
+    ['Centre — imaginary', fmt(state.view.im, 15)],
+    ['Magnification', `${mag.toExponential(2)} ×`],
+    ['Iteration limit', String(currentIterations())],
+    ['Canvas', `${canvas.width} × ${canvas.height}`],
+    ['Last render', `${lastRenderMs.toFixed(0)} ms`],
+  ];
+  $('stat-host').innerHTML = tiles.map(([label, value]) => `
+    <div class="net-tile">
+      <div class="net-tile-label">${label}</div>
+      <div class="net-tile-value mono">${value}</div>
+    </div>`).join('');
+
+  const note = $('precision-note');
+  if (head < 8) {
+    note.innerHTML = `<span class="fe-warn">Double precision is exhausted here</span> — one pixel is
+      only ${head.toFixed(1)} ULP of the coordinate, so neighbouring pixels are rounding to the same
+      complex number and the detail you see is an artefact. Zoom out, or bring arbitrary precision.`;
+  } else if (head < 100) {
+    note.innerHTML = `Close to the precision floor: one pixel is ${head.toFixed(0)} ULP of the
+      coordinate. Past about 10<sup>15</sup>× magnification this renderer cannot be trusted.`;
+  } else {
+    note.textContent = '';
+  }
+  writeHash();
+}
+
+/* ---- navigation ---- */
+
+function zoomAt(px, py, factor) {
+  const w = canvas.width;
+  const h = canvas.height;
+  const before = pixelToComplex(state.view, w, h, px, py);
+  state.view.span *= factor;
+  // keep the point under the cursor fixed
+  const after = pixelToComplex(state.view, w, h, px, py);
+  state.view.re += before.re - after.re;
+  state.view.im += before.im - after.im;
+  render();
+}
+
+canvas.addEventListener('wheel', (ev) => {
+  ev.preventDefault();
+  const r = canvas.getBoundingClientRect();
+  const px = (ev.clientX - r.left) * (canvas.width / r.width);
+  const py = (ev.clientY - r.top) * (canvas.height / r.height);
+  zoomAt(px, py, ev.deltaY > 0 ? 1.25 : 0.8);
+}, { passive: false });
+
+let drag = null;
+const pointers = new Map();
+
+canvas.addEventListener('pointerdown', (ev) => {
+  canvas.setPointerCapture(ev.pointerId);
+  pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+  if (ev.shiftKey && state.type !== 'julia') {
+    const r = canvas.getBoundingClientRect();
+    const c = pixelToComplex(state.view, canvas.width, canvas.height,
+      (ev.clientX - r.left) * (canvas.width / r.width),
+      (ev.clientY - r.top) * (canvas.height / r.height));
+    state.cre = c.re;
+    state.cim = c.im;
+    $('cre-input').value = String(Number(c.re.toFixed(12)));
+    $('cim-input').value = String(Number(c.im.toFixed(12)));
+    setType('julia');
+    return;
+  }
+  if (pointers.size === 1) drag = { x: ev.clientX, y: ev.clientY, moved: false };
+});
+
+canvas.addEventListener('pointermove', (ev) => {
+  if (!pointers.has(ev.pointerId)) return;
+  const prev = pointers.get(ev.pointerId);
+  pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+  if (pointers.size >= 2) {
+    // pinch: the distance between two fingers sets the span
+    const [a, b] = [...pointers.values()];
+    const dist = Math.hypot(a.x - b.x, a.y - b.y);
+    if (drag && drag.pinch) {
+      const r = canvas.getBoundingClientRect();
+      const midX = ((a.x + b.x) / 2 - r.left) * (canvas.width / r.width);
+      const midY = ((a.y + b.y) / 2 - r.top) * (canvas.height / r.height);
+      if (dist > 4 && drag.pinch > 4) zoomAt(midX, midY, drag.pinch / dist);
+    }
+    drag = { ...(drag || {}), pinch: dist };
+    return;
+  }
+  if (!drag) return;
+  const r = canvas.getBoundingClientRect();
+  const scale = state.view.span / canvas.height * (canvas.height / r.height);
+  state.view.re -= (ev.clientX - prev.x) * scale;
+  state.view.im += (ev.clientY - prev.y) * scale;
+  drag.moved = true;
+  render();
+});
+
+function endPointer(ev) {
+  pointers.delete(ev.pointerId);
+  if (pointers.size === 0) drag = null;
+  else if (drag) delete drag.pinch;
+}
+canvas.addEventListener('pointerup', endPointer);
+canvas.addEventListener('pointercancel', endPointer);
+canvas.addEventListener('dblclick', (ev) => {
+  const r = canvas.getBoundingClientRect();
+  zoomAt((ev.clientX - r.left) * (canvas.width / r.width),
+    (ev.clientY - r.top) * (canvas.height / r.height), 0.4);
+});
+
+$('zoom-in-btn').addEventListener('click', () => zoomAt(canvas.width / 2, canvas.height / 2, 0.5));
+$('zoom-out-btn').addEventListener('click', () => zoomAt(canvas.width / 2, canvas.height / 2, 2));
+$('reset-btn').addEventListener('click', () => {
+  state.view = { ...TYPES.find((t) => t.id === state.type).defaultView };
+  render();
+});
+
+/* ---- controls ---- */
+
+function setType(id) {
+  state.type = id;
+  $('type-select').value = id;
+  const t = TYPES.find((x) => x.id === id);
+  $('julia-box').classList.toggle('hidden', !t.julia);
+  $('power-box').style.visibility = id === 'multibrot' ? 'visible' : 'hidden';
+  state.view = { ...t.defaultView };
+  render();
+}
+
+$('type-select').addEventListener('change', (e) => setType(e.target.value));
+
+$('place-select').addEventListener('change', (e) => {
+  const p = PLACES[Number(e.target.value)];
+  if (!p) return;
+  state.type = p.type;
+  $('type-select').value = p.type;
+  const t = TYPES.find((x) => x.id === p.type);
+  $('julia-box').classList.toggle('hidden', !t.julia);
+  $('power-box').style.visibility = p.type === 'multibrot' ? 'visible' : 'hidden';
+  if (p.c) {
+    state.cre = p.c.re;
+    state.cim = p.c.im;
+    $('cre-input').value = String(p.c.re);
+    $('cim-input').value = String(p.c.im);
+  }
+  state.view = { ...p.view };
+  e.target.value = '';
+  render();
+});
+
+$('curve-select').addEventListener('change', (e) => {
+  state.curve = e.target.value;
+  if (bufComplete) paintFromBuffer();
+  else render();
+  writeHash();
+});
+$('palette-select').addEventListener('change', (e) => {
+  state.palette = e.target.value;
+  if (bufComplete) paintFromBuffer();
+  else render();
+});
+$('density-slider').addEventListener('input', (e) => {
+  state.density = Number(e.target.value);
+  $('density-value').textContent = e.target.value;
+  if (bufComplete) paintFromBuffer();
+  else render();
+});
+$('power-slider').addEventListener('input', (e) => {
+  state.power = Number(e.target.value);
+  $('power-value').textContent = e.target.value;
+  render();
+});
+$('iter-slider').addEventListener('input', (e) => {
+  state.iterManual = Number(e.target.value);
+  state.autoIter = false;
+  $('auto-iter-check').checked = false;
+  $('iter-value').textContent = e.target.value;
+  render();
+});
+$('auto-iter-check').addEventListener('change', (e) => {
+  state.autoIter = e.target.checked;
+  $('iter-value').textContent = e.target.checked ? 'auto' : String(state.iterManual);
+  render();
+});
+
+let cycleRaf = null;
+$('cycle-check').addEventListener('change', (e) => {
+  if (e.target.checked) {
+    const tick = () => {
+      state.cycle = (state.cycle + 0.004) % 1;
+      if (bufComplete) paintFromBuffer();
+      cycleRaf = requestAnimationFrame(tick);
+    };
+    cycleRaf = requestAnimationFrame(tick);
+  } else if (cycleRaf) {
+    cancelAnimationFrame(cycleRaf);
+    cycleRaf = null;
+  }
+});
+
+['cre-input', 'cim-input'].forEach((id) => $(id).addEventListener('input', () => {
+  const re = Number($('cre-input').value);
+  const im = Number($('cim-input').value);
+  if (!Number.isFinite(re) || !Number.isFinite(im)) return;
+  state.cre = re;
+  state.cim = im;
+  render();
+}));
+
+$('png-btn').addEventListener('click', () => {
+  canvas.toBlob((blob) => {
+    const url = URL.createObjectURL(blob);
+    const a = $('download-link');
+    a.href = url;
+    a.download = `${state.type}-${magnification(state.view).toExponential(1)}.png`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  }, 'image/png');
+});
+
+$('link-btn').addEventListener('click', async () => {
+  writeHash();
+  try {
+    await navigator.clipboard.writeText(location.href);
+    const toast = $('copy-toast');
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 1200);
+  } catch (e) { /* clipboard blocked — the address bar already holds the link */ }
+});
+
+/* ---- the URL is the save file ---- */
+
+let hashTimer = null;
+function writeHash() {
+  clearTimeout(hashTimer);
+  hashTimer = setTimeout(() => {
+    const p = new URLSearchParams();
+    p.set('t', state.type);
+    p.set('re', String(state.view.re));
+    p.set('im', String(state.view.im));
+    p.set('span', String(state.view.span));
+    p.set('pal', state.palette);
+    p.set('d', String(state.density));
+    p.set('c', state.curve);
+    if (state.type === 'julia') { p.set('cre', String(state.cre)); p.set('cim', String(state.cim)); }
+    if (state.type === 'multibrot') p.set('pow', String(state.power));
+    if (!state.autoIter) p.set('iter', String(state.iterManual));
+    history.replaceState(null, '', `#${p.toString()}`);
+  }, 400);
+}
+
+function readHash() {
+  if (!location.hash || location.hash.length < 3) return false;
+  const p = new URLSearchParams(location.hash.slice(1));
+  const t = p.get('t');
+  if (!TYPES.some((x) => x.id === t)) return false;
+  state.type = t;
+  const num = (k, fallback) => {
+    const v = Number(p.get(k));
+    return Number.isFinite(v) && p.get(k) !== null ? v : fallback;
+  };
+  state.view = {
+    re: num('re', 0),
+    im: num('im', 0),
+    span: Math.abs(num('span', 3.2)) || 3.2,
+  };
+  state.cre = num('cre', state.cre);
+  state.cim = num('cim', state.cim);
+  state.power = Math.max(2, Math.min(8, num('pow', 2)));
+  state.density = Math.max(2, Math.min(120, num('d', 28)));
+  if (PALETTES.some((x) => x.id === p.get('pal'))) state.palette = p.get('pal');
+  if (['sqrt', 'log', 'linear'].includes(p.get('c'))) state.curve = p.get('c');
+  if (p.get('iter')) { state.autoIter = false; state.iterManual = Math.max(50, Math.min(4000, num('iter', 400))); }
+  return true;
+}
+
+/* Headless hook for screenshots and tests. */
+window.__fractal = {
+  escapeValue,
+  paletteColor,
+  curveValue,
+  pixelToComplex,
+  setView(o) { Object.assign(state, o); render(); },
+  get state() { return JSON.parse(JSON.stringify(state)); },
+  get done() { return bufComplete; },
+  pixel(x, y) {
+    const d = ctx.getImageData(x, y, 1, 1).data;
+    return [d[0], d[1], d[2]];
+  },
+};
+
+/* ---- boot ---- */
+
+const fromUrl = readHash();
+$('type-select').value = state.type;
+$('palette-select').value = state.palette;
+$('curve-select').value = state.curve;
+$('density-slider').value = String(state.density);
+$('density-value').textContent = String(state.density);
+$('power-slider').value = String(state.power);
+$('power-value').textContent = String(state.power);
+$('cre-input').value = String(state.cre);
+$('cim-input').value = String(state.cim);
+$('auto-iter-check').checked = state.autoIter;
+$('iter-value').textContent = state.autoIter ? 'auto' : String(state.iterManual);
+$('julia-box').classList.toggle('hidden', state.type !== 'julia');
+$('power-box').style.visibility = state.type === 'multibrot' ? 'visible' : 'hidden';
+if (!fromUrl) state.view = { ...TYPES.find((t) => t.id === state.type).defaultView };
+render();
+
+let resizeTimer = null;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(render, 250);
+});
+</script>
+<!-- Slippy Deck: floating Slippy TV + jukebox player. Renders nothing unless admin.slippylabs.com/whoami confirms a signed-in account. -->
+<script defer src="https://slippylabs.com/deck/deck.js"></script>
+<!-- Slippy Labs sitewide privacy link. Self-contained on purpose: these sites
+     share no CSS, so it carries its own styles and inherits the page's text
+     colour instead of assuming a palette. position/z-index are load bearing --
+     the HUD theme's .starfield/.scanlines are fixed at z-index 0-1 and would
+     paint straight over an unpositioned footer.
+     The .page-wrap trim below is what keeps the bar on the first screen. -->
+<div class="sl-legal"><a href="https://slippylabs.com/privacy.html">Privacy</a></div>
+<style>
+.sl-legal{box-sizing:border-box;position:relative;z-index:3;height:64px;display:flex;align-items:center;justify-content:center;margin:0;padding:0 12px;font-family:"Consolas","SFMono-Regular",Menlo,Monaco,"Courier New",monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.5}
+.sl-legal a{color:inherit;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 14px}
+.sl-legal a:hover,.sl-legal a:focus-visible{text-decoration:underline;opacity:1}
+/* This page centres .page-wrap at min-height:100vh, which would push the bar a
+   whole screen below the fold. Give back exactly the bar height instead of
+   adding a scrollbar to a page that had none. */
+.page-wrap{min-height:calc(100vh - 64px)}
+</style>
+</body>
+</html>
